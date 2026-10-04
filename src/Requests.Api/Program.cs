@@ -1,11 +1,57 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.OpenApi.Models;
+using Requests.Api.Authentication;
 using Requests.Infrastructure;
 using Requests.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
+// By default MVC skips the record-level check (createdFrom > createdTo) when a field
+// is already invalid; this reports all validation errors at once.
+builder.Services
+    .AddControllers(options => options.ValidateComplexTypesIfChildValidationFails = true)
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        options.JsonSerializerOptions.DictionaryKeyPolicy = JsonNamingPolicy.CamelCase;
+    });
+
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    // Lets the Swagger "Authorize" button send the simulated user headers.
+    string[] userHeaders =
+    [
+        HeaderUserAuthenticationHandler.UserIdHeader,
+        HeaderUserAuthenticationHandler.IsAdminHeader
+    ];
+    foreach (var header in userHeaders)
+    {
+        options.AddSecurityDefinition(header, new OpenApiSecurityScheme
+        {
+            Type = SecuritySchemeType.ApiKey,
+            In = ParameterLocation.Header,
+            Name = header
+        });
+        options.AddSecurityRequirement(new OpenApiSecurityRequirement
+        {
+            [new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = header }
+            }] = []
+        });
+    }
+});
+
+builder.Services
+    .AddAuthentication(HeaderUserAuthenticationHandler.SchemeName)
+    .AddScheme<AuthenticationSchemeOptions, HeaderUserAuthenticationHandler>(
+        HeaderUserAuthenticationHandler.SchemeName,
+        configureOptions: null);
+builder.Services.AddAuthorization();
+
 builder.Services.AddInfrastructure();
 
 // The React dev server normally proxies /api, so CORS is a fallback for
@@ -32,7 +78,11 @@ if (app.Environment.IsDevelopment())
     app.UseCors(FrontendDevCors);
 }
 
-app.MapControllers();
+app.UseAuthentication();
+app.UseAuthorization();
+
+// Secure by default: every controller needs a user unless marked [AllowAnonymous].
+app.MapControllers().RequireAuthorization();
 
 app.Run();
 

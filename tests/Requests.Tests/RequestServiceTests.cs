@@ -1,4 +1,6 @@
+using Requests.Application.Common;
 using Requests.Application.Requests;
+using Requests.Application.Users;
 using Requests.Domain.Entities;
 using Xunit;
 
@@ -7,62 +9,47 @@ namespace Requests.Tests;
 public class RequestServiceTests
 {
     [Fact]
-    public async Task Administrator_CanSeeAllRequests()
+    public async Task SearchRequests_MapsItemsToDtosAndKeepsPagingInfo()
     {
-        var repository = new FakeRequestRepository(
-        [
-            Create(1, ownerId: 1, assignedTo: 2),
-            Create(2, ownerId: 3, assignedTo: 4)
-        ]);
-
-        var service = new RequestService(repository);
-
-        var result = await service.GetRequestsAsync(1, true);
-
-        Assert.Equal(2, result.Count);
-    }
-
-    [Fact]
-    public async Task RegularUser_CanSeeOwnedOrAssignedRequests()
-    {
-        var repository = new FakeRequestRepository(
-        [
-            Create(1, ownerId: 1, assignedTo: 5),
-            Create(2, ownerId: 3, assignedTo: 1),
-            Create(3, ownerId: 3, assignedTo: 5)
-        ]);
-
-        var service = new RequestService(repository);
-
-        var result = await service.GetRequestsAsync(1, false);
-
-        Assert.Equal(2, result.Count);
-        Assert.DoesNotContain(result, x => x.Id == 3);
-    }
-
-    private static Request Create(int id, int ownerId, int assignedTo)
-        => new()
+        var createdAt = new DateTime(2026, 3, 1, 10, 0, 0, DateTimeKind.Utc);
+        var request = new Request
         {
-            Id = id,
-            RequestNumber = $"REQ-{id:000}",
-            CustomerId = id,
-            OwnerId = ownerId,
-            AssignedToUserId = assignedTo,
+            Id = 7,
+            RequestNumber = "REQ-000007",
+            CustomerId = 8,
+            OwnerId = 3,
+            AssignedToUserId = null,
             Status = RequestStatus.New,
-            RequestType = RequestType.General,
-            CreatedAt = DateTime.UtcNow
+            RequestType = RequestType.Legal,
+            CreatedAt = createdAt
         };
+        var repository = new FakeRequestRepository(
+            new PagedResult<Request>([request], TotalCount: 42, Page: 2, PageSize: 20));
 
-    private sealed class FakeRequestRepository : IRequestRepository
+        var service = new RequestService(repository);
+
+        var result = await service.SearchRequestsAsync(new SearchRequestsQuery(), new CurrentUser(1, IsAdministrator: true));
+
+        var expected = new RequestDto(7, "REQ-000007", 8, 3, null, RequestStatus.New, RequestType.Legal, createdAt);
+        Assert.Equal([expected], result.Items);
+        Assert.Equal(42, result.TotalCount);
+        Assert.Equal(2, result.Page);
+        Assert.Equal(20, result.PageSize);
+    }
+
+    private class FakeRequestRepository : IRequestRepository
     {
-        private readonly List<Request> _requests;
+        private readonly PagedResult<Request> _result;
 
-        public FakeRequestRepository(List<Request> requests)
+        public FakeRequestRepository(PagedResult<Request> result)
         {
-            _requests = requests;
+            _result = result;
         }
 
-        public Task<List<Request>> GetAllAsync(CancellationToken cancellationToken = default)
-            => Task.FromResult(_requests);
+        public Task<PagedResult<Request>> SearchAsync(
+            SearchRequestsQuery query,
+            CurrentUser currentUser,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(_result);
     }
 }

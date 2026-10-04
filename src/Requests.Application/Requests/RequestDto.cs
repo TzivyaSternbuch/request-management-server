@@ -2,7 +2,7 @@ using Requests.Domain.Entities;
 
 namespace Requests.Application.Requests;
 
-public sealed record RequestDto(
+public record RequestDto(
     int Id,
     string RequestNumber,
     int CustomerId,

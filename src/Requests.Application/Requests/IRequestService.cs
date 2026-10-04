@@ -1,9 +1,12 @@
+using Requests.Application.Common;
+using Requests.Application.Users;
+
 namespace Requests.Application.Requests;
 
 public interface IRequestService
 {
-    Task<IReadOnlyList<RequestDto>> GetRequestsAsync(
-        int currentUserId,
-        bool isAdministrator,
+    Task<PagedResult<RequestDto>> SearchRequestsAsync(
+        SearchRequestsQuery query,
+        CurrentUser currentUser,
         CancellationToken cancellationToken = default);
 }

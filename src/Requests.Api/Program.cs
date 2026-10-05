@@ -67,7 +67,10 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<RequestsDbContext>();
     db.Database.Migrate();
-    DbSeeder.Seed(db);
+
+    // Demo data is for local development only; tests and other environments start empty.
+    if (app.Environment.IsDevelopment())
+        DbSeeder.Seed(db);
 }
 
 if (app.Environment.IsDevelopment())

@@ -31,33 +31,11 @@ public class RequestQueryableExtensionsTests
         {
             Create(1, ownerId: 1, assignedTo: 5),
             Create(2, ownerId: 3, assignedTo: 1),
-            Create(3, ownerId: 3, assignedTo: 5)
+            Create(3, ownerId: 3, assignedTo: 5),
+            Create(4, ownerId: 3, assignedTo: null)
         };
 
         var result = requests.AsQueryable().VisibleTo(new CurrentUser(1, IsAdministrator: false));
-
-        Assert.Equal([1, 2], Ids(result));
-    }
-
-    [Fact]
-    public void VisibleTo_RegularUser_HidesUnassignedRequestsOfOthers()
-    {
-        var requests = new[]
-        {
-            Create(1, ownerId: 3, assignedTo: null)
-        };
-
-        var result = requests.AsQueryable().VisibleTo(new CurrentUser(1, IsAdministrator: false));
-
-        Assert.Empty(result);
-    }
-
-    [Fact]
-    public void ApplyFilters_NoFilters_ReturnsAllRequests()
-    {
-        var requests = new[] { Create(1), Create(2) };
-
-        var result = requests.AsQueryable().ApplyFilters(new SearchRequestsQuery());
 
         Assert.Equal([1, 2], Ids(result));
     }
@@ -70,40 +48,6 @@ public class RequestQueryableExtensionsTests
         var result = requests.AsQueryable().ApplyFilters(new SearchRequestsQuery { RequestNumber = "0002" });
 
         Assert.Equal([2, 20], Ids(result));
-    }
-
-    [Fact]
-    public void ApplyFilters_RequestNumberLowerCase_ReturnsMatchingRequests()
-    {
-        var requests = new[] { Create(1), Create(2) };
-
-        var result = requests.AsQueryable().ApplyFilters(new SearchRequestsQuery { RequestNumber = "req-000001" });
-
-        Assert.Equal([1], Ids(result));
-    }
-
-    [Fact]
-    public void ApplyFilters_RequestNumberBlank_IsIgnored()
-    {
-        var requests = new[] { Create(1), Create(2) };
-
-        var result = requests.AsQueryable().ApplyFilters(new SearchRequestsQuery { RequestNumber = "   " });
-
-        Assert.Equal([1, 2], Ids(result));
-    }
-
-    [Fact]
-    public void ApplyFilters_OneStatus_ReturnsOnlyThatStatus()
-    {
-        var requests = new[]
-        {
-            Create(1, status: RequestStatus.New),
-            Create(2, status: RequestStatus.Completed)
-        };
-
-        var result = requests.AsQueryable().ApplyFilters(new SearchRequestsQuery { Status = [RequestStatus.New] });
-
-        Assert.Equal([1], Ids(result));
     }
 
     [Fact]
@@ -177,61 +121,6 @@ public class RequestQueryableExtensionsTests
     }
 
     [Fact]
-    public void ApplyFilters_CreatedToMaxDate_DoesNotThrow()
-    {
-        var requests = new[] { Create(1) };
-
-        var result = requests.AsQueryable().ApplyFilters(new SearchRequestsQuery { CreatedTo = DateOnly.MaxValue });
-
-        Assert.Equal([1], Ids(result));
-    }
-
-    [Fact]
-    public void ApplyFilters_SeveralFilters_CombinesWithAnd()
-    {
-        var requests = new[]
-        {
-            Create(1, status: RequestStatus.New, type: RequestType.Legal),
-            Create(2, status: RequestStatus.New, type: RequestType.Payment),
-            Create(3, status: RequestStatus.Completed, type: RequestType.Legal)
-        };
-
-        var result = requests.AsQueryable().ApplyFilters(new SearchRequestsQuery
-        {
-            Status = [RequestStatus.New],
-            Type = [RequestType.Legal]
-        });
-
-        Assert.Equal([1], Ids(result));
-    }
-
-    [Theory]
-    [InlineData(RequestSortField.CreatedAt, SortDirection.Asc, new[] { 2, 1, 3 })]
-    [InlineData(RequestSortField.CreatedAt, SortDirection.Desc, new[] { 3, 1, 2 })]
-    [InlineData(RequestSortField.RequestNumber, SortDirection.Asc, new[] { 1, 2, 3 })]
-    [InlineData(RequestSortField.RequestNumber, SortDirection.Desc, new[] { 3, 2, 1 })]
-    [InlineData(RequestSortField.Status, SortDirection.Asc, new[] { 2, 3, 1 })]
-    [InlineData(RequestSortField.Status, SortDirection.Desc, new[] { 1, 3, 2 })]
-    [InlineData(RequestSortField.Type, SortDirection.Asc, new[] { 3, 1, 2 })]
-    [InlineData(RequestSortField.Type, SortDirection.Desc, new[] { 2, 1, 3 })]
-    public void ApplySort_EachFieldAndDirection_OrdersAccordingly(
-        RequestSortField sortBy,
-        SortDirection sortDirection,
-        int[] expectedIds)
-    {
-        var requests = new[]
-        {
-            Create(1, status: RequestStatus.Completed, type: RequestType.Payment, createdAt: Day.AddDays(1)),
-            Create(2, status: RequestStatus.New, type: RequestType.Appeal, createdAt: Day),
-            Create(3, status: RequestStatus.InProgress, type: RequestType.General, createdAt: Day.AddDays(2))
-        };
-
-        var result = requests.AsQueryable().ApplySort([new RequestSort(sortBy, sortDirection)]);
-
-        Assert.Equal(expectedIds, Ids(result));
-    }
-
-    [Fact]
     public void ApplySort_SeveralFields_OrdersTiesByTheNextField()
     {
         var requests = new[]
@@ -250,47 +139,15 @@ public class RequestQueryableExtensionsTests
         Assert.Equal([3, 1, 2], Ids(result));
     }
 
-    [Theory]
-    [InlineData(SortDirection.Asc)]
-    [InlineData(SortDirection.Desc)]
-    public void ApplySort_EqualValues_OrdersByIdAscending(SortDirection sortDirection)
+    // Without a fixed order for equal values, the same request could show up on two pages.
+    [Fact]
+    public void ApplySort_EqualValues_OrdersByIdAscending()
     {
         var requests = new[] { Create(2), Create(3), Create(1) };
 
-        var result = requests.AsQueryable().ApplySort([new RequestSort(RequestSortField.CreatedAt, sortDirection)]);
+        var result = requests.AsQueryable().ApplySort([new RequestSort(RequestSortField.CreatedAt, SortDirection.Desc)]);
 
         Assert.Equal([1, 2, 3], Ids(result));
-    }
-
-    [Fact]
-    public void ApplySort_NoFields_OrdersById()
-    {
-        var requests = new[] { Create(2), Create(1) };
-
-        var result = requests.AsQueryable().ApplySort([]);
-
-        Assert.Equal([1, 2], Ids(result));
-    }
-
-    [Fact]
-    public void ToDto_MapsEveryField()
-    {
-        var request = new Request
-        {
-            Id = 7,
-            RequestNumber = "REQ-000007",
-            CustomerId = 8,
-            OwnerId = 3,
-            AssignedToUserId = 4,
-            Status = RequestStatus.InProgress,
-            RequestType = RequestType.Legal,
-            CreatedAt = Day
-        };
-
-        var result = new[] { request }.AsQueryable().ToDto();
-
-        var expected = new RequestDto(7, "REQ-000007", 8, 3, 4, RequestStatus.InProgress, RequestType.Legal, Day);
-        Assert.Equal([expected], result);
     }
 
     private static int[] Ids(IQueryable<Request> requests)

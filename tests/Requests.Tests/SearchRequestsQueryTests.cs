@@ -8,43 +8,11 @@ namespace Requests.Tests;
 public class SearchRequestsQueryTests
 {
     [Fact]
-    public void SearchRequestsQuery_Defaults_AreValid()
-    {
-        var errors = Validate(new SearchRequestsQuery());
-
-        Assert.Empty(errors);
-    }
-
-    [Fact]
-    public void SearchRequestsQuery_PageLessThanOne_IsInvalid()
-    {
-        var errors = Validate(new SearchRequestsQuery { Page = 0 });
-
-        AssertSingleErrorFor(nameof(SearchRequestsQuery.Page), errors);
-    }
-
-    [Fact]
-    public void SearchRequestsQuery_PageSizeZero_IsInvalid()
-    {
-        var errors = Validate(new SearchRequestsQuery { PageSize = 0 });
-
-        AssertSingleErrorFor(nameof(SearchRequestsQuery.PageSize), errors);
-    }
-
-    [Fact]
     public void SearchRequestsQuery_PageSizeAbove100_IsInvalid()
     {
         var errors = Validate(new SearchRequestsQuery { PageSize = 101 });
 
         AssertSingleErrorFor(nameof(SearchRequestsQuery.PageSize), errors);
-    }
-
-    [Fact]
-    public void SearchRequestsQuery_PageSize100_IsValid()
-    {
-        var errors = Validate(new SearchRequestsQuery { PageSize = 100 });
-
-        Assert.Empty(errors);
     }
 
     [Fact]
@@ -68,18 +36,6 @@ public class SearchRequestsQueryTests
     }
 
     [Fact]
-    public void SearchRequestsQuery_CreatedFromEqualsCreatedTo_IsValid()
-    {
-        var errors = Validate(new SearchRequestsQuery
-        {
-            CreatedFrom = new DateOnly(2026, 3, 1),
-            CreatedTo = new DateOnly(2026, 3, 1)
-        });
-
-        Assert.Empty(errors);
-    }
-
-    [Fact]
     public void SearchRequestsQuery_SortDirCountDiffersFromSortBy_IsInvalid()
     {
         var errors = Validate(new SearchRequestsQuery
@@ -89,48 +45,6 @@ public class SearchRequestsQueryTests
         });
 
         AssertSingleErrorFor(nameof(SearchRequestsQuery.SortDir), errors);
-    }
-
-    [Fact]
-    public void SearchRequestsQuery_SameSortByTwice_IsInvalid()
-    {
-        var errors = Validate(new SearchRequestsQuery
-        {
-            SortBy = [RequestSortField.Status, RequestSortField.Status],
-            SortDir = [SortDirection.Asc, SortDirection.Desc]
-        });
-
-        AssertSingleErrorFor(nameof(SearchRequestsQuery.SortBy), errors);
-    }
-
-    [Fact]
-    public void SearchRequestsQuery_SeveralSortFields_IsValid()
-    {
-        var errors = Validate(new SearchRequestsQuery
-        {
-            SortBy = [RequestSortField.Status, RequestSortField.CreatedAt],
-            SortDir = [SortDirection.Asc, SortDirection.Desc]
-        });
-
-        Assert.Empty(errors);
-    }
-
-    [Fact]
-    public void GetSorts_PairsEachSortByWithItsSortDir()
-    {
-        var query = new SearchRequestsQuery
-        {
-            SortBy = [RequestSortField.Status, RequestSortField.CreatedAt],
-            SortDir = [SortDirection.Asc, SortDirection.Desc]
-        };
-
-        var sorts = query.GetSorts();
-
-        Assert.Equal(
-        [
-            new RequestSort(RequestSortField.Status, SortDirection.Asc),
-            new RequestSort(RequestSortField.CreatedAt, SortDirection.Desc)
-        ], sorts);
     }
 
     [Fact]

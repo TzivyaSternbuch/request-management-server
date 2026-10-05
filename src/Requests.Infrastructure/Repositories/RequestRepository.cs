@@ -28,7 +28,7 @@ public class RequestRepository : IRequestRepository
         var totalCount = await filtered.CountAsync(cancellationToken);
 
         var items = await filtered
-            .ApplySort(query.SortBy, query.SortDir)
+            .ApplySort(query.GetSorts())
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
             .ToDto()

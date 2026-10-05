@@ -58,17 +58,24 @@ public static class RequestQueryableExtensions
 
     public static IQueryable<Request> ApplySort(
         this IQueryable<Request> requests,
-        RequestSortField sortBy,
-        SortDirection sortDirection)
+        IReadOnlyList<RequestSort> sorts)
     {
-        return sortBy switch
+        IOrderedQueryable<Request>? ordered = null;
+
+        foreach (var sort in sorts)
         {
-            RequestSortField.CreatedAt => OrderByThenById(requests, x => x.CreatedAt, sortDirection),
-            RequestSortField.RequestNumber => OrderByThenById(requests, x => x.RequestNumber, sortDirection),
-            RequestSortField.Status => OrderByThenById(requests, x => x.Status, sortDirection),
-            RequestSortField.Type => OrderByThenById(requests, x => x.RequestType, sortDirection),
-            _ => throw new ArgumentOutOfRangeException(nameof(sortBy), sortBy, null)
-        };
+            ordered = sort.Field switch
+            {
+                RequestSortField.CreatedAt => AddSortKey(requests, ordered, x => x.CreatedAt, sort.Direction),
+                RequestSortField.RequestNumber => AddSortKey(requests, ordered, x => x.RequestNumber, sort.Direction),
+                RequestSortField.Status => AddSortKey(requests, ordered, x => x.Status, sort.Direction),
+                RequestSortField.Type => AddSortKey(requests, ordered, x => x.RequestType, sort.Direction),
+                _ => throw new ArgumentOutOfRangeException(nameof(sorts), sort.Field, null)
+            };
+        }
+
+        // Id is unique, so rows with equal values keep a fixed order and pages never overlap.
+        return AddSortKey(requests, ordered, x => x.Id, SortDirection.Asc);
     }
 
     public static IQueryable<RequestDto> ToDto(this IQueryable<Request> requests)
@@ -82,13 +89,22 @@ public static class RequestQueryableExtensions
             x.RequestType,
             x.CreatedAt));
 
-    private static IQueryable<Request> OrderByThenById<TKey>(
+    // The first key starts the order (OrderBy); each next key only orders the ties left by the ones before (ThenBy).
+    private static IOrderedQueryable<Request> AddSortKey<TKey>(
         IQueryable<Request> requests,
+        IOrderedQueryable<Request>? ordered,
         Expression<Func<Request, TKey>> key,
         SortDirection sortDirection)
     {
+        if (ordered is null)
+        {
+            return sortDirection == SortDirection.Asc
+                ? requests.OrderBy(key)
+                : requests.OrderByDescending(key);
+        }
+
         return sortDirection == SortDirection.Asc
-            ? requests.OrderBy(key).ThenBy(x => x.Id)
-            : requests.OrderByDescending(key).ThenByDescending(x => x.Id);
+            ? ordered.ThenBy(key)
+            : ordered.ThenByDescending(key);
     }
 }

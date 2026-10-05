@@ -226,21 +226,50 @@ public class RequestQueryableExtensionsTests
             Create(3, status: RequestStatus.InProgress, type: RequestType.General, createdAt: Day.AddDays(2))
         };
 
-        var result = requests.AsQueryable().ApplySort(sortBy, sortDirection);
+        var result = requests.AsQueryable().ApplySort([new RequestSort(sortBy, sortDirection)]);
 
         Assert.Equal(expectedIds, Ids(result));
     }
 
+    [Fact]
+    public void ApplySort_SeveralFields_OrdersTiesByTheNextField()
+    {
+        var requests = new[]
+        {
+            Create(1, status: RequestStatus.New, createdAt: Day),
+            Create(2, status: RequestStatus.Completed, createdAt: Day),
+            Create(3, status: RequestStatus.New, createdAt: Day.AddDays(1))
+        };
+
+        var result = requests.AsQueryable().ApplySort(
+        [
+            new RequestSort(RequestSortField.Status, SortDirection.Asc),
+            new RequestSort(RequestSortField.CreatedAt, SortDirection.Desc)
+        ]);
+
+        Assert.Equal([3, 1, 2], Ids(result));
+    }
+
     [Theory]
-    [InlineData(SortDirection.Asc, new[] { 1, 2, 3 })]
-    [InlineData(SortDirection.Desc, new[] { 3, 2, 1 })]
-    public void ApplySort_EqualValues_OrdersById(SortDirection sortDirection, int[] expectedIds)
+    [InlineData(SortDirection.Asc)]
+    [InlineData(SortDirection.Desc)]
+    public void ApplySort_EqualValues_OrdersByIdAscending(SortDirection sortDirection)
     {
         var requests = new[] { Create(2), Create(3), Create(1) };
 
-        var result = requests.AsQueryable().ApplySort(RequestSortField.CreatedAt, sortDirection);
+        var result = requests.AsQueryable().ApplySort([new RequestSort(RequestSortField.CreatedAt, sortDirection)]);
 
-        Assert.Equal(expectedIds, Ids(result));
+        Assert.Equal([1, 2, 3], Ids(result));
+    }
+
+    [Fact]
+    public void ApplySort_NoFields_OrdersById()
+    {
+        var requests = new[] { Create(2), Create(1) };
+
+        var result = requests.AsQueryable().ApplySort([]);
+
+        Assert.Equal([1, 2], Ids(result));
     }
 
     [Fact]

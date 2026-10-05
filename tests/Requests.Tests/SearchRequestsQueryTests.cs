@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Requests.Application.Common;
 using Requests.Application.Requests;
 using Xunit;
 
@@ -76,6 +77,68 @@ public class SearchRequestsQueryTests
         });
 
         Assert.Empty(errors);
+    }
+
+    [Fact]
+    public void SearchRequestsQuery_SortDirCountDiffersFromSortBy_IsInvalid()
+    {
+        var errors = Validate(new SearchRequestsQuery
+        {
+            SortBy = [RequestSortField.Status, RequestSortField.CreatedAt],
+            SortDir = [SortDirection.Asc]
+        });
+
+        AssertSingleErrorFor(nameof(SearchRequestsQuery.SortDir), errors);
+    }
+
+    [Fact]
+    public void SearchRequestsQuery_SameSortByTwice_IsInvalid()
+    {
+        var errors = Validate(new SearchRequestsQuery
+        {
+            SortBy = [RequestSortField.Status, RequestSortField.Status],
+            SortDir = [SortDirection.Asc, SortDirection.Desc]
+        });
+
+        AssertSingleErrorFor(nameof(SearchRequestsQuery.SortBy), errors);
+    }
+
+    [Fact]
+    public void SearchRequestsQuery_SeveralSortFields_IsValid()
+    {
+        var errors = Validate(new SearchRequestsQuery
+        {
+            SortBy = [RequestSortField.Status, RequestSortField.CreatedAt],
+            SortDir = [SortDirection.Asc, SortDirection.Desc]
+        });
+
+        Assert.Empty(errors);
+    }
+
+    [Fact]
+    public void GetSorts_PairsEachSortByWithItsSortDir()
+    {
+        var query = new SearchRequestsQuery
+        {
+            SortBy = [RequestSortField.Status, RequestSortField.CreatedAt],
+            SortDir = [SortDirection.Asc, SortDirection.Desc]
+        };
+
+        var sorts = query.GetSorts();
+
+        Assert.Equal(
+        [
+            new RequestSort(RequestSortField.Status, SortDirection.Asc),
+            new RequestSort(RequestSortField.CreatedAt, SortDirection.Desc)
+        ], sorts);
+    }
+
+    [Fact]
+    public void GetSorts_Defaults_NewestFirst()
+    {
+        var sorts = new SearchRequestsQuery().GetSorts();
+
+        Assert.Equal([new RequestSort(RequestSortField.CreatedAt, SortDirection.Desc)], sorts);
     }
 
     private static List<ValidationResult> Validate(SearchRequestsQuery query)

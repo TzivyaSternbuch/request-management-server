@@ -21,9 +21,10 @@ public record SearchRequestsQuery : IValidatableObject
 
     public DateOnly? CreatedTo { get; init; }
 
-    public RequestSortField SortBy { get; init; } = RequestSortField.CreatedAt;
+    // Sort keys in priority order; SortDir[i] is the direction of SortBy[i].
+    public RequestSortField[] SortBy { get; init; } = [RequestSortField.CreatedAt];
 
-    public SortDirection SortDir { get; init; } = SortDirection.Desc;
+    public SortDirection[] SortDir { get; init; } = [SortDirection.Desc];
 
     [Range(1, int.MaxValue)]
     public int Page { get; init; } = 1;
@@ -39,5 +40,23 @@ public record SearchRequestsQuery : IValidatableObject
                 "createdFrom must be on or before createdTo.",
                 [nameof(CreatedFrom)]);
         }
+
+        if (SortBy.Length != SortDir.Length)
+        {
+            yield return new ValidationResult(
+                "Give one sortDir for each sortBy.",
+                [nameof(SortDir)]);
+        }
+
+        if (SortBy.Distinct().Count() != SortBy.Length)
+        {
+            yield return new ValidationResult(
+                "Each sortBy field can be used only once.",
+                [nameof(SortBy)]);
+        }
     }
+
+    // A method, not a property, so model binding and Swagger do not treat it as a query parameter.
+    public IReadOnlyList<RequestSort> GetSorts()
+        => SortBy.Zip(SortDir, (field, direction) => new RequestSort(field, direction)).ToList();
 }

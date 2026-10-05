@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using Requests.Api.Authentication;
 using Requests.Infrastructure;
@@ -52,7 +53,11 @@ builder.Services
         configureOptions: null);
 builder.Services.AddAuthorization();
 
-builder.Services.AddInfrastructure();
+const string RequestsConnectionStringName = "Requests";
+var connectionString = builder.Configuration.GetConnectionString(RequestsConnectionStringName)
+    ?? throw new InvalidOperationException(
+        $"Connection string '{RequestsConnectionStringName}' is missing.");
+builder.Services.AddInfrastructure(connectionString, AppContext.BaseDirectory);
 
 // The React dev server normally proxies /api, so CORS is a fallback for
 // calling the API directly from http://localhost:5173 during development.
@@ -68,6 +73,7 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<RequestsDbContext>();
+    db.Database.Migrate();
     DbSeeder.Seed(db);
 }
 

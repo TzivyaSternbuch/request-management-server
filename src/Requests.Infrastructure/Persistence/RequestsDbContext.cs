@@ -10,4 +10,9 @@ public class RequestsDbContext : DbContext
     }
 
     public DbSet<Request> Requests => Set<Request>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.ApplyConfiguration(new RequestConfiguration());
+    }
 }

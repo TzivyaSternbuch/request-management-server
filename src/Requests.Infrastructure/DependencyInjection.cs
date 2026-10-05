@@ -2,6 +2,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Requests.Application.Requests;
+using Requests.Application.Users;
 using Requests.Infrastructure.Persistence;
 using Requests.Infrastructure.Repositories;
 
@@ -19,6 +20,8 @@ public static class DependencyInjection
 
         services.AddScoped<IRequestRepository, RequestRepository>();
         services.AddScoped<IRequestService, RequestService>();
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IUserService, UserService>();
 
         return services;
     }

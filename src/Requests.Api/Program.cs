@@ -22,28 +22,21 @@ builder.Services
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
-    // Lets the Swagger "Authorize" button send the simulated user headers.
-    string[] userHeaders =
-    [
-        HeaderUserAuthenticationHandler.UserIdHeader,
-        HeaderUserAuthenticationHandler.IsAdminHeader
-    ];
-    foreach (var header in userHeaders)
+    // Lets the Swagger "Authorize" button send the simulated user header.
+    const string userHeader = HeaderUserAuthenticationHandler.UserIdHeader;
+    options.AddSecurityDefinition(userHeader, new OpenApiSecurityScheme
     {
-        options.AddSecurityDefinition(header, new OpenApiSecurityScheme
+        Type = SecuritySchemeType.ApiKey,
+        In = ParameterLocation.Header,
+        Name = userHeader
+    });
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        [new OpenApiSecurityScheme
         {
-            Type = SecuritySchemeType.ApiKey,
-            In = ParameterLocation.Header,
-            Name = header
-        });
-        options.AddSecurityRequirement(new OpenApiSecurityRequirement
-        {
-            [new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = header }
-            }] = []
-        });
-    }
+            Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = userHeader }
+        }] = []
+    });
 });
 
 builder.Services

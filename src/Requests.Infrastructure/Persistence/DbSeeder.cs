@@ -7,6 +7,7 @@ public static class DbSeeder
     private const int SeedCount = 100_000;
     private const int BatchSize = 10_000;
     private const int UserCount = 50;
+    private const int AdministratorCount = 2;
     private const int CustomerCount = 1_000;
     private const int HistoryDays = 3 * 365;
     private const int UnassignedEvery = 7;
@@ -16,7 +17,28 @@ public static class DbSeeder
     private static readonly RequestStatus[] Statuses = Enum.GetValues<RequestStatus>();
     private static readonly RequestType[] Types = Enum.GetValues<RequestType>();
 
+    // Users and requests are checked separately, so a database seeded before users existed gets them too.
     public static void Seed(RequestsDbContext db)
+    {
+        SeedUsers(db);
+        SeedRequests(db);
+    }
+
+    // The users with the lowest ids are the administrators, so they are easy to find for a demo.
+    private static void SeedUsers(RequestsDbContext db)
+    {
+        if (db.Users.Any())
+            return;
+
+        var users = Enumerable.Range(1, UserCount)
+            .Select(id => new User { Id = id, IsAdministrator = id <= AdministratorCount });
+
+        db.Users.AddRange(users);
+        db.SaveChanges();
+        db.ChangeTracker.Clear();
+    }
+
+    private static void SeedRequests(RequestsDbContext db)
     {
         if (db.Requests.Any())
             return;
@@ -24,7 +46,6 @@ public static class DbSeeder
         var random = new Random(RandomSeed);
         var now = DateTime.UtcNow;
 
-    
         using var transaction = db.Database.BeginTransaction();
 
         // Saving in batches and clearing the change tracker keeps memory low:

@@ -5,6 +5,5 @@ public enum RequestSortField
     CreatedAt,
     RequestNumber,
     Status,
-    Type,
-    CustomerId
+    Type
 }

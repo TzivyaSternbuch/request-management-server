@@ -9,29 +9,16 @@ namespace Requests.Tests;
 public class RequestServiceTests
 {
     [Fact]
-    public async Task SearchRequests_MapsItemsToDtosAndKeepsPagingInfo()
+    public async Task SearchRequests_ReturnsRepositoryResult()
     {
         var createdAt = new DateTime(2026, 3, 1, 10, 0, 0, DateTimeKind.Utc);
-        var request = new Request
-        {
-            Id = 7,
-            RequestNumber = "REQ-000007",
-            CustomerId = 8,
-            OwnerId = 3,
-            AssignedToUserId = null,
-            Status = RequestStatus.New,
-            RequestType = RequestType.Legal,
-            CreatedAt = createdAt
-        };
-        var repository = new FakeRequestRepository(
-            new PagedResult<Request>([request], TotalCount: 42, Page: 2, PageSize: 20));
-
-        var service = new RequestService(repository);
+        var request = new RequestDto(7, "REQ-000007", 8, 3, null, RequestStatus.New, RequestType.Legal, createdAt);
+        var expected = new PagedResult<RequestDto>([request], TotalCount: 42, Page: 2, PageSize: 20);
+        var service = new RequestService(new FakeRequestRepository(expected));
 
         var result = await service.SearchRequestsAsync(new SearchRequestsQuery(), new CurrentUser(1, IsAdministrator: true));
 
-        var expected = new RequestDto(7, "REQ-000007", 8, 3, null, RequestStatus.New, RequestType.Legal, createdAt);
-        Assert.Equal([expected], result.Items);
+        Assert.Equal([request], result.Items);
         Assert.Equal(42, result.TotalCount);
         Assert.Equal(2, result.Page);
         Assert.Equal(20, result.PageSize);
@@ -39,14 +26,14 @@ public class RequestServiceTests
 
     private class FakeRequestRepository : IRequestRepository
     {
-        private readonly PagedResult<Request> _result;
+        private readonly PagedResult<RequestDto> _result;
 
-        public FakeRequestRepository(PagedResult<Request> result)
+        public FakeRequestRepository(PagedResult<RequestDto> result)
         {
             _result = result;
         }
 
-        public Task<PagedResult<Request>> SearchAsync(
+        public Task<PagedResult<RequestDto>> SearchAsync(
             SearchRequestsQuery query,
             CurrentUser currentUser,
             CancellationToken cancellationToken = default)

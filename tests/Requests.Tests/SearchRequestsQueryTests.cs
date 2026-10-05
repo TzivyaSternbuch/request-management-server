@@ -47,14 +47,6 @@ public class SearchRequestsQueryTests
     }
 
     [Fact]
-    public void SearchRequestsQuery_CustomerIdZero_IsInvalid()
-    {
-        var errors = Validate(new SearchRequestsQuery { CustomerId = 0 });
-
-        AssertSingleErrorFor(nameof(SearchRequestsQuery.CustomerId), errors);
-    }
-
-    [Fact]
     public void SearchRequestsQuery_RequestNumberTooLong_IsInvalid()
     {
         var errors = Validate(new SearchRequestsQuery { RequestNumber = new string('1', 51) });

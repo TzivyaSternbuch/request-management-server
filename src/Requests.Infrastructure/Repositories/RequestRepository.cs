@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using Requests.Application.Common;
 using Requests.Application.Requests;
 using Requests.Application.Users;
-using Requests.Domain.Entities;
 using Requests.Infrastructure.Persistence;
 
 namespace Requests.Infrastructure.Repositories;
@@ -16,7 +15,7 @@ public class RequestRepository : IRequestRepository
         _db = db;
     }
 
-    public async Task<PagedResult<Request>> SearchAsync(
+    public async Task<PagedResult<RequestDto>> SearchAsync(
         SearchRequestsQuery query,
         CurrentUser currentUser,
         CancellationToken cancellationToken = default)
@@ -32,8 +31,9 @@ public class RequestRepository : IRequestRepository
             .ApplySort(query.SortBy, query.SortDir)
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
+            .ToDto()
             .ToListAsync(cancellationToken);
 
-        return new PagedResult<Request>(items, totalCount, query.Page, query.PageSize);
+        return new PagedResult<RequestDto>(items, totalCount, query.Page, query.PageSize);
     }
 }

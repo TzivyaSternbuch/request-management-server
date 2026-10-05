@@ -143,16 +143,6 @@ public class RequestQueryableExtensionsTests
     }
 
     [Fact]
-    public void ApplyFilters_CustomerId_ReturnsOnlyThatCustomer()
-    {
-        var requests = new[] { Create(1, customerId: 8), Create(2, customerId: 9) };
-
-        var result = requests.AsQueryable().ApplyFilters(new SearchRequestsQuery { CustomerId = 8 });
-
-        Assert.Equal([1], Ids(result));
-    }
-
-    [Fact]
     public void ApplyFilters_CreatedFrom_ExcludesEarlierDays()
     {
         var requests = new[]
@@ -201,15 +191,15 @@ public class RequestQueryableExtensionsTests
     {
         var requests = new[]
         {
-            Create(1, status: RequestStatus.New, customerId: 5),
-            Create(2, status: RequestStatus.New, customerId: 6),
-            Create(3, status: RequestStatus.Completed, customerId: 5)
+            Create(1, status: RequestStatus.New, type: RequestType.Legal),
+            Create(2, status: RequestStatus.New, type: RequestType.Payment),
+            Create(3, status: RequestStatus.Completed, type: RequestType.Legal)
         };
 
         var result = requests.AsQueryable().ApplyFilters(new SearchRequestsQuery
         {
             Status = [RequestStatus.New],
-            CustomerId = 5
+            Type = [RequestType.Legal]
         });
 
         Assert.Equal([1], Ids(result));
@@ -224,8 +214,6 @@ public class RequestQueryableExtensionsTests
     [InlineData(RequestSortField.Status, SortDirection.Desc, new[] { 1, 3, 2 })]
     [InlineData(RequestSortField.Type, SortDirection.Asc, new[] { 3, 1, 2 })]
     [InlineData(RequestSortField.Type, SortDirection.Desc, new[] { 2, 1, 3 })]
-    [InlineData(RequestSortField.CustomerId, SortDirection.Asc, new[] { 1, 3, 2 })]
-    [InlineData(RequestSortField.CustomerId, SortDirection.Desc, new[] { 2, 3, 1 })]
     public void ApplySort_EachFieldAndDirection_OrdersAccordingly(
         RequestSortField sortBy,
         SortDirection sortDirection,
@@ -233,9 +221,9 @@ public class RequestQueryableExtensionsTests
     {
         var requests = new[]
         {
-            Create(1, status: RequestStatus.Completed, type: RequestType.Payment, customerId: 1, createdAt: Day.AddDays(1)),
-            Create(2, status: RequestStatus.New, type: RequestType.Appeal, customerId: 3, createdAt: Day),
-            Create(3, status: RequestStatus.InProgress, type: RequestType.General, customerId: 2, createdAt: Day.AddDays(2))
+            Create(1, status: RequestStatus.Completed, type: RequestType.Payment, createdAt: Day.AddDays(1)),
+            Create(2, status: RequestStatus.New, type: RequestType.Appeal, createdAt: Day),
+            Create(3, status: RequestStatus.InProgress, type: RequestType.General, createdAt: Day.AddDays(2))
         };
 
         var result = requests.AsQueryable().ApplySort(sortBy, sortDirection);
@@ -255,6 +243,27 @@ public class RequestQueryableExtensionsTests
         Assert.Equal(expectedIds, Ids(result));
     }
 
+    [Fact]
+    public void ToDto_MapsEveryField()
+    {
+        var request = new Request
+        {
+            Id = 7,
+            RequestNumber = "REQ-000007",
+            CustomerId = 8,
+            OwnerId = 3,
+            AssignedToUserId = 4,
+            Status = RequestStatus.InProgress,
+            RequestType = RequestType.Legal,
+            CreatedAt = Day
+        };
+
+        var result = new[] { request }.AsQueryable().ToDto();
+
+        var expected = new RequestDto(7, "REQ-000007", 8, 3, 4, RequestStatus.InProgress, RequestType.Legal, Day);
+        Assert.Equal([expected], result);
+    }
+
     private static int[] Ids(IQueryable<Request> requests)
         => requests.Select(x => x.Id).ToArray();
 
@@ -264,13 +273,11 @@ public class RequestQueryableExtensionsTests
         int? assignedTo = null,
         RequestStatus status = RequestStatus.New,
         RequestType type = RequestType.General,
-        int customerId = 1,
         DateTime? createdAt = null)
         => new()
         {
             Id = id,
             RequestNumber = $"REQ-{id:000000}",
-            CustomerId = customerId,
             OwnerId = ownerId,
             AssignedToUserId = assignedTo,
             Status = status,

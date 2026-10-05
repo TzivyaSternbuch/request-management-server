@@ -17,9 +17,6 @@ public record SearchRequestsQuery : IValidatableObject
 
     public RequestType[] Type { get; init; } = [];
 
-    [Range(1, int.MaxValue)]
-    public int? CustomerId { get; init; }
-
     public DateOnly? CreatedFrom { get; init; }
 
     public DateOnly? CreatedTo { get; init; }

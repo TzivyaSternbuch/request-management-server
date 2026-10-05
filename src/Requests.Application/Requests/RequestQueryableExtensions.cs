@@ -40,19 +40,16 @@ public static class RequestQueryableExtensions
             requests = requests.Where(x => types.Contains(x.RequestType));
         }
 
-        if (query.CustomerId is int customerId)
-            requests = requests.Where(x => x.CustomerId == customerId);
-
         if (query.CreatedFrom is DateOnly createdFrom)
         {
-            var startOfDay = createdFrom.ToDateTime(TimeOnly.MinValue);
+            var startOfDay = createdFrom.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
             requests = requests.Where(x => x.CreatedAt >= startOfDay);
         }
 
         if (query.CreatedTo is DateOnly createdTo)
         {
             // The last moment of the day instead of "next day" so DateOnly.MaxValue cannot overflow.
-            var endOfDay = createdTo.ToDateTime(TimeOnly.MaxValue);
+            var endOfDay = createdTo.ToDateTime(TimeOnly.MaxValue, DateTimeKind.Utc);
             requests = requests.Where(x => x.CreatedAt <= endOfDay);
         }
 
@@ -70,10 +67,20 @@ public static class RequestQueryableExtensions
             RequestSortField.RequestNumber => OrderByThenById(requests, x => x.RequestNumber, sortDirection),
             RequestSortField.Status => OrderByThenById(requests, x => x.Status, sortDirection),
             RequestSortField.Type => OrderByThenById(requests, x => x.RequestType, sortDirection),
-            RequestSortField.CustomerId => OrderByThenById(requests, x => x.CustomerId, sortDirection),
             _ => throw new ArgumentOutOfRangeException(nameof(sortBy), sortBy, null)
         };
     }
+
+    public static IQueryable<RequestDto> ToDto(this IQueryable<Request> requests)
+        => requests.Select(x => new RequestDto(
+            x.Id,
+            x.RequestNumber,
+            x.CustomerId,
+            x.OwnerId,
+            x.AssignedToUserId,
+            x.Status,
+            x.RequestType,
+            x.CreatedAt));
 
     private static IQueryable<Request> OrderByThenById<TKey>(
         IQueryable<Request> requests,
